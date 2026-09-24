@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "c64sid-forensic"
+version = "1.0.0"
+description = "Dependency-free C64 SID playback, analysis, and forensic export core"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Ulf Bertilsson"}]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+]
+
+[tool.setuptools]
+packages = ["sid", "sid.playback"]
+package-dir = {sid = "."}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
