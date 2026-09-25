@@ -21,7 +21,7 @@ selection, incomplete headers, and reserved extra-SID addresses raise
 from sid.playback import PlaybackCoordinator
 
 player = PlaybackCoordinator()
-player.load_sid_bytes(raw_sid)
+player.load_sid_bytes(raw_sid, song=2)  # one-based; omit for the header default
 result = player.render_to_wav("output.wav", seconds=30, sample_rate=44100)
 ```
 

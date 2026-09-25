@@ -43,6 +43,7 @@ class PlaybackCoordinator:
         self.c64 = C64System(self.cfg)
         self.header: Optional[SidHeader] = None
         self.sid_data: Optional[bytes] = None
+        self.selected_song: Optional[int] = None
 
         # Forensic dump / SID-PRO V6
         self._dump_json_path: Optional[str] = None
@@ -63,10 +64,15 @@ class PlaybackCoordinator:
         self._dump_compression = str(compression)
         SystemLogger.log('Playback', f"Forensic dump armed: {self._dump_json_path} | compression={self._dump_compression}", 'debug', category='boot')
 
-    def load_sid_bytes(self, raw: bytes) -> None:
+    def load_sid_bytes(self, raw: bytes, song: Optional[int] = None) -> None:
+        """Load a SID file and select a one-based subsong for initialization."""
         hdr, mem = parse_sid_header(raw)
+        selected_song = hdr.startSong if song is None else int(song)
+        if not 1 <= selected_song <= hdr.songs:
+            raise ValueError(f"Song {selected_song} is outside 1..{hdr.songs}")
         self.header = hdr
         self.sid_data = mem
+        self.selected_song = selected_song
 
         SystemLogger.log('Playback', f"Loaded '{hdr.title}' by {hdr.author} ({hdr.released})", 'info')
         SystemLogger.log('Playback', f"System: {'NTSC' if hdr.isNtsc else 'PAL'} | SIDs: {hdr.sidCount} | BASIC: {hdr.c64BasicFlag}", 'info')
@@ -164,14 +170,13 @@ class PlaybackCoordinator:
             self._telemetry_frames = []
             self._trace_start_cycles = int(self.c64.stats.cpuCycles)
             self._telemetry_frame_index = 0
-# Set song number in A
-        song = max(1, hdr.startSong)
-        self.c64.cpu.a = (song - 1) & 0xFF
+        # Conventional SID init input: zero-based subsong number in A.
+        self.c64.cpu.a = (selected_song - 1) & 0xFF
 
         # Call init
         if hdr.initAddress != 0:
-            SystemLogger.log('Playback', f"Calling init at ${hdr.initAddress:04X} (song {song})", 'info')
-            self.c64.call(hdr.initAddress, a=(song-1)&0xFF, x=0, y=0)
+            SystemLogger.log('Playback', f"Calling init at ${hdr.initAddress:04X} (song {selected_song})", 'info')
+            self.c64.call(hdr.initAddress, a=(selected_song - 1) & 0xFF, x=0, y=0)
         else:
             SystemLogger.log('Playback', 'No init address; skipping init', 'warn')
 
@@ -199,9 +204,10 @@ class PlaybackCoordinator:
         cia_frequency = 60.0  # Default to 60Hz if CIA-based
 
         if hdr.playAddress != 0:
-            # Check speed bits - bit N set means song N uses CIA timer
-            # For simplicity, use CIA timing if any speed bit is set
-            if hdr.speed != 0:
+            # PSID speed bit N applies only to subsong N+1. The 32-bit field
+            # cannot describe subsongs beyond the first 32.
+            song_index = (self.selected_song or hdr.startSong) - 1
+            if 0 <= song_index < 32 and (hdr.speed & (1 << song_index)):
                 use_cia_timing = True
                 # Estimate frequency from timer (rough approximation)
                 cia_frequency = 50.0 if not hdr.isNtsc else 60.0

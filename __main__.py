@@ -19,6 +19,7 @@ def main() -> int:
     parser.add_argument("--seconds", type=float, default=30.0, help="render duration (default: 30)")
     parser.add_argument("--sample-rate", type=int, default=44100, help="WAV sample rate (default: 44100)")
     parser.add_argument("--sidpro", type=Path, help="write SID-PRO V6 JSON evidence")
+    parser.add_argument("--song", type=int, help="one-based subsong number (default: SID start song)")
     parser.add_argument("--allow-hle-rsid", action="store_true", help="allow non-faithful HLE ROM stubs for RSID")
     args = parser.parse_args()
 
@@ -34,7 +35,7 @@ def main() -> int:
     player = PlaybackCoordinator(config)
     if args.sidpro:
         player.enable_forensic_dump(str(args.sidpro))
-    player.load_sid_bytes(raw)
+    player.load_sid_bytes(raw, song=args.song)
     result = player.render_to_wav(str(args.wav), args.seconds, args.sample_rate)
     print(f"Wrote {result.wav_path}: {result.samples} samples, {result.frames_rendered} play calls")
     return 0

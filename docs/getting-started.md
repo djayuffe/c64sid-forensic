@@ -31,7 +31,12 @@ python3 -m sid tune.sid --wav tune.wav --seconds 60 --sample-rate 44100
 ```
 
 The output is a mono 16-bit PCM WAV. The renderer uses the SID header’s PAL or
-NTSC clock and calls the tune’s play routine at its declared cadence.
+NTSC clock and calls the tune’s play routine at its declared cadence. Select a
+one-based subsong explicitly when needed:
+
+```bash
+python3 -m sid tune.sid --song 2 --wav song-2.wav
+```
 
 ## Capture forensic evidence
 

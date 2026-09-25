@@ -106,6 +106,15 @@ class PlaybackTests(unittest.TestCase):
             SidExporter.validate_sidpro(exported)
             self.assertEqual(exported["metadata"]["format_version"], "6.0.0")
 
+    def test_selects_valid_subsong_and_rejects_invalid_one(self) -> None:
+        raw = bytearray(psid(songs=2, start_song=1))
+        raw[-1:] = b"\x60\xea\xea\x60"
+        player = PlaybackCoordinator()
+        player.load_sid_bytes(bytes(raw), song=2)
+        self.assertEqual(player.selected_song, 2)
+        with self.assertRaises(ValueError):
+            PlaybackCoordinator().load_sid_bytes(bytes(raw), song=3)
+
 
 if __name__ == "__main__":
     unittest.main()
