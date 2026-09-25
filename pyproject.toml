@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "c64sid-forensic"
-version = "1.1.0"
+version = "1.1.1"
 description = "Dependency-free C64 SID playback, analysis, and forensic export core"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,6 +26,10 @@ Issues = "https://github.com/djayuffe/c64sid-forensic/issues"
 [tool.setuptools]
 packages = ["sid", "sid.playback"]
 package-dir = {sid = "."}
+include-package-data = false
+
+[tool.setuptools.exclude-package-data]
+"*" = ["__pycache__/*", "*.pyc"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

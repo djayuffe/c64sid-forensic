@@ -9,7 +9,7 @@ It is designed for analysis and tooling rather than claiming analog-perfect
 emulation. The core deliberately exposes timing, register, bus, and telemetry
 data so a caller can inspect how a tune behaves.
 
-> Status: **v1.1.0** is a tested analysis core. It is suitable for metadata,
+> Status: **v1.1.1** is a tested analysis core. It is suitable for metadata,
 > deterministic playback experiments, WAV rendering, and SID-PRO evidence—not
 > as a substitute for VICE or real hardware validation.
 
