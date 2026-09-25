@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
+import json
 
 from sid.sid_parser import parse_sid_header
 from sid.c64_system import C64System
 from sid.vic_dma import VicDmaEnhanced
 from sid.vic_ii import VicII
 from sid.playback import PlaybackCoordinator
+from sid.sid_exporter import SidExporter
 
 
 def psid(*, offset: int = 0x7C, songs: int = 1, start_song: int = 1) -> bytes:
@@ -75,16 +78,33 @@ class VicDmaTests(unittest.TestCase):
 
 
 class PlaybackTests(unittest.TestCase):
-    def test_minimal_psid_renders_wav(self) -> None:
+    @staticmethod
+    def _minimal_tune() -> bytes:
         raw = bytearray(psid())
         # Init RTS at $1000; play RTS at $1003.
         raw[-1:] = b"\x60\xea\xea\x60"
-        output = Path("/private/tmp/c64sid-render-test.wav")
-        player = PlaybackCoordinator()
-        player.load_sid_bytes(bytes(raw))
-        result = player.render_to_wav(str(output), seconds=0.01, sample_rate=8000)
-        self.assertEqual(result.samples, 80)
-        self.assertEqual(output.stat().st_size, 44 + result.samples * 2)
+        return bytes(raw)
+
+    def test_minimal_psid_renders_wav(self) -> None:
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "render.wav"
+            player = PlaybackCoordinator()
+            player.load_sid_bytes(self._minimal_tune())
+            result = player.render_to_wav(str(output), seconds=0.01, sample_rate=8000)
+            self.assertEqual(result.samples, 80)
+            self.assertEqual(output.stat().st_size, 44 + result.samples * 2)
+
+    def test_forensic_export_validates(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            dump = root / "capture.sidpro.json"
+            player = PlaybackCoordinator()
+            player.enable_forensic_dump(str(dump))
+            player.load_sid_bytes(self._minimal_tune())
+            player.render_to_wav(str(root / "render.wav"), seconds=0.01, sample_rate=8000)
+            exported = json.loads(dump.read_text(encoding="utf-8"))
+            SidExporter.validate_sidpro(exported)
+            self.assertEqual(exported["metadata"]["format_version"], "6.0.0")
 
 
 if __name__ == "__main__":

@@ -29,7 +29,8 @@ package-dir = {sid = "."}
 include-package-data = false
 
 [tool.setuptools.exclude-package-data]
-"*" = ["__pycache__/*", "*.pyc"]
+sid = ["__pycache__/*", "playback/__pycache__/*", "*.pyc", "**/*.pyc"]
+"sid.playback" = ["__pycache__/*", "*.pyc"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

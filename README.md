@@ -26,6 +26,16 @@ data so a caller can inspect how a tune behaves.
 - Explicit HLE/ROM policy: RSID requires real ROMs unless HLE is deliberately
   enabled with `allowHleForRsid=True`.
 
+## Documentation
+
+- [Getting started](docs/getting-started.md): installation, safe inspection,
+  rendering, and RSID policy.
+- [API guide](docs/api.md): public classes, return values, and configuration.
+- [SID-PRO format](docs/sidpro.md): exported JSON structure and validation.
+- [Architecture](docs/architecture.md): timing model and fidelity boundaries.
+- [Development and release checks](docs/development.md): test and package
+  verification commands.
+
 ## Layout
 
 | Path | Purpose |
