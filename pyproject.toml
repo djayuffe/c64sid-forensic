@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "c64sid-forensic"
-version = "1.0.0"
+version = "1.1.0"
 description = "Dependency-free C64 SID playback, analysis, and forensic export core"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,8 +13,15 @@ authors = [{name = "Ulf Bertilsson"}]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Multimedia :: Sound/Audio",
+  "Topic :: System :: Emulators",
   "License :: OSI Approved :: MIT License",
 ]
+keywords = ["c64", "commodore-64", "sid", "psid", "rsid", "emulator", "chiptune", "forensics"]
+
+[project.urls]
+Repository = "https://github.com/djayuffe/c64sid-forensic"
+Issues = "https://github.com/djayuffe/c64sid-forensic/issues"
 
 [tool.setuptools]
 packages = ["sid", "sid.playback"]

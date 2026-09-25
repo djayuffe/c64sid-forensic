@@ -9,6 +9,10 @@ It is designed for analysis and tooling rather than claiming analog-perfect
 emulation. The core deliberately exposes timing, register, bus, and telemetry
 data so a caller can inspect how a tune behaves.
 
+> Status: **v1.1.0** is a tested analysis core. It is suitable for metadata,
+> deterministic playback experiments, WAV rendering, and SID-PRO evidence—not
+> as a substitute for VICE or real hardware validation.
+
 ## Features
 
 - PSID v1–v4 and RSID header parsing, including second/third SID metadata.
@@ -40,6 +44,19 @@ python3 -m pip install .
 ```
 
 The installed import package is `sid`. The project has no runtime dependencies.
+
+## Quick start
+
+```bash
+# Read metadata only; tune code is not executed.
+python3 -m sid music.sid --info
+
+# Render 30 seconds to a standard mono, 16-bit PCM WAV file.
+python3 -m sid music.sid --wav music.wav --seconds 30
+```
+
+The command exits with a useful parser error for an invalid SID header. Preserve
+the original SID alongside exported WAV/SID-PRO files when comparing results.
 
 ## Command-line use
 
@@ -98,6 +115,17 @@ advancement share a clock. The system API is deliberately explicit:
 
 See [`docs/architecture.md`](docs/architecture.md) for the component map and
 known fidelity boundaries.
+
+## Output formats
+
+| Output | When to use it | What it contains |
+| --- | --- | --- |
+| `.wav` | Listening, waveform analysis, or regression comparison | Mono 16-bit PCM at the requested sample rate |
+| `.sidpro.json` | Deterministic inspection or diffing | Compressed RAM snapshots, SID writes, checksums, and frame telemetry |
+
+SID-PRO capture is opt-in with `--sidpro path.sidpro.json` or
+`enable_forensic_dump()`. It must be enabled before loading the tune to include
+the init routine.
 
 ## Development checks
 
