@@ -107,7 +107,8 @@ header, program = parse_sid_header(open("music.sid", "rb").read())
 print(header.title, header.sidAddresses, len(program))
 ```
 
-Runnable versions live in [`examples/`](examples/).
+Runnable versions—including a self-contained silent PSID smoke tune—live in
+[`examples/`](examples/).
 
 ## Correctness model
 
