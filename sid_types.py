@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional
+from typing import List, Literal, Optional
 
 SidModel = Literal['6581', '8580', 'UNKNOWN']
 PlaybackMethod = Literal['VBI_Call', 'CIA_Interrupt']

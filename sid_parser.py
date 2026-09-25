@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import Tuple
 
 from .logger import SystemLogger
@@ -47,7 +46,8 @@ def parse_sid_header(raw: bytes) -> Tuple[SidHeader, bytes]:
 
     if version == 0 or version > 4:
         raise ValueError(f'Unsupported SID version: {version}')
-    if data_offset < 0x76 or data_offset > len(raw):
+    minimum_header = 0x76 if version == 1 else 0x7C
+    if data_offset < minimum_header or data_offset > len(raw):
         raise ValueError(f'Invalid SID data offset: {data_offset:#x}')
     if songs == 0 or start_song == 0 or start_song > songs:
         raise ValueError('Invalid SID song count or start song')
@@ -99,16 +99,18 @@ def parse_sid_header(raw: bytes) -> Tuple[SidHeader, bytes]:
     if version >= 2 and len(raw) > 0x7A:
         model_bits2 = (flags >> 6) & 0x03
         addr_byte = raw[0x7A]
-        if addr_byte >= 0x42 and (addr_byte & 1) == 0:
+        mapped_address = _map_sid_address(addr_byte)
+        if mapped_address:
             sid_models.append('6581' if model_bits2 == 1 else '8580' if model_bits2 == 2 else sid_models[0])
-            sid_addresses.append(_map_sid_address(addr_byte))
+            sid_addresses.append(mapped_address)
 
     if version >= 3 and len(raw) > 0x7B:
         model_bits3 = (flags >> 8) & 0x03
         addr_byte = raw[0x7B]
-        if addr_byte >= 0x42 and (addr_byte & 1) == 0:
+        mapped_address = _map_sid_address(addr_byte)
+        if mapped_address:
             sid_models.append('6581' if model_bits3 == 1 else '8580' if model_bits3 == 2 else sid_models[0])
-            sid_addresses.append(_map_sid_address(addr_byte))
+            sid_addresses.append(mapped_address)
 
     pal_clock = 985_248
     ntsc_clock = 1_022_730

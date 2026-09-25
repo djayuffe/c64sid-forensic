@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Tuple
 
 from .cpu_illegals import CpuIllegals
-from .trace_recorder import SidTraceRecorder
 from .logger import SystemLogger
 from .sid_names import analyze_sid_write, get_sid_reg_name
 from typing import Any, Protocol

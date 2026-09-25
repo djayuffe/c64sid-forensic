@@ -15,7 +15,7 @@ This mirrors the intent of the TypeScript SidExporter used for forensic export.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
 
 @dataclass

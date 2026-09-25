@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from sid.sid_parser import parse_sid_header
+from sid.c64_system import C64System
 from sid.vic_dma import VicDmaEnhanced
 from sid.vic_ii import VicII
+from sid.playback import PlaybackCoordinator
 
 
 def psid(*, offset: int = 0x7C, songs: int = 1, start_song: int = 1) -> bytes:
@@ -36,6 +39,16 @@ class SidParserTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_sid_header(psid(songs=1, start_song=2))
 
+    def test_rejects_v2_header_with_v1_data_offset(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_sid_header(psid(offset=0x76))
+
+    def test_ignores_reserved_second_sid_address(self) -> None:
+        raw = bytearray(psid())
+        raw[0x7A] = 0x80  # reserved $D800-$DDF0 range
+        header, _ = parse_sid_header(bytes(raw))
+        self.assertEqual(header.sidCount, 1)
+
 
 class VicDmaTests(unittest.TestCase):
     def test_badline_stalls_cpu(self) -> None:
@@ -45,6 +58,33 @@ class VicDmaTests(unittest.TestCase):
         vic.rasterLine = 0x33
         vic.cycleCounter = 15
         self.assertTrue(VicDmaEnhanced().steal_info(vic).steal)
+
+    def test_system_constructs_and_steps(self) -> None:
+        system = C64System()
+        self.assertEqual(system.step(32), 32)
+        self.assertGreater(system.stats.instructions, 0)
+
+    def test_badline_stall_advances_time(self) -> None:
+        system = C64System()
+        system.memory.vic.reset()
+        system.memory.vic.rasterLine = 0x33
+        system.memory.vic.cycleCounter = 15
+        before = system.stats.cpuCycles
+        system._vic_steal_cycle()
+        self.assertEqual(system.stats.cpuCycles, before + 1)
+
+
+class PlaybackTests(unittest.TestCase):
+    def test_minimal_psid_renders_wav(self) -> None:
+        raw = bytearray(psid())
+        # Init RTS at $1000; play RTS at $1003.
+        raw[-1:] = b"\x60\xea\xea\x60"
+        output = Path("/private/tmp/c64sid-render-test.wav")
+        player = PlaybackCoordinator()
+        player.load_sid_bytes(bytes(raw))
+        result = player.render_to_wav(str(output), seconds=0.01, sample_rate=8000)
+        self.assertEqual(result.samples, 80)
+        self.assertEqual(output.stat().st_size, 44 + result.samples * 2)
 
 
 if __name__ == "__main__":

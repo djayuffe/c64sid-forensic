@@ -1,8 +1,9 @@
 # C64SID Forensic
 
-`c64sid-forensic` is a dependency-free Python core for loading PSID/RSID files,
-running their 6502 init/play routines in a C64 memory map, modelling one to
-three SID chips, and exporting deterministic playback evidence.
+`c64sid-forensic` is a dependency-free Python 3.10+ core for loading PSID/RSID
+files, running their 6502 init/play routines in a C64 memory map, modelling one
+to three SID chips, rendering WAV audio, and exporting deterministic playback
+evidence.
 
 It is designed for analysis and tooling rather than claiming analog-perfect
 emulation. The core deliberately exposes timing, register, bus, and telemetry
@@ -38,7 +39,27 @@ data so a caller can inspect how a tune behaves.
 python3 -m pip install .
 ```
 
-The installed import package is `sid`:
+The installed import package is `sid`. The project has no runtime dependencies.
+
+## Command-line use
+
+Inspect a tune without executing its code:
+
+```bash
+python3 -m sid music.sid --info
+```
+
+Render a PSID tune and produce a forensic SID-PRO V6 JSON capture:
+
+```bash
+python3 -m sid music.sid --wav music.wav --seconds 60 --sidpro music.sidpro.json
+```
+
+RSID files require real C64 ROMs for faithful execution. `--allow-hle-rsid`
+exists for exploratory use only; its generated ROM stubs are intentionally not
+presented as cycle- or hardware-faithful.
+
+## Python examples
 
 ```python
 from sid.playback import PlaybackCoordinator
@@ -46,25 +67,53 @@ from sid.playback import PlaybackCoordinator
 with open("music.sid", "rb") as source:
     player = PlaybackCoordinator()
     player.load_sid_bytes(source.read())
-    result = player.render_wav("music.wav", seconds=30)
+    result = player.render_to_wav("music.wav", seconds=30)
 print(result)
 ```
+
+For metadata only, no emulation is necessary:
+
+```python
+from sid import parse_sid_header
+
+header, program = parse_sid_header(open("music.sid", "rb").read())
+print(header.title, header.sidAddresses, len(program))
+```
+
+Runnable versions live in [`examples/`](examples/).
+
+## Correctness model
+
+The parser rejects malformed magic/version, impossible song selection, and
+truncated/invalid header offsets. SID chip addresses are validated against the
+PSID address map, including its reserved range. The emulator progresses in
+PHI2 cycles: CPU bus operations, VIC DMA stalls, CIA/VIC ticking, and SID
+advancement share a clock. The system API is deliberately explicit:
+
+- `C64System.step(cycles)` advances a bounded number of global PHI2 cycles.
+- `C64System.call(address, a, x, y)` invokes a 6502 subroutine and returns on
+  the outer `RTS`, with a safety bound.
+- `PlaybackCoordinator.enable_forensic_dump(path)` must be called before
+  `load_sid_bytes` so init and playback events are captured.
+
+See [`docs/architecture.md`](docs/architecture.md) for the component map and
+known fidelity boundaries.
 
 ## Development checks
 
 ```bash
-python3 -m compileall -q .
-PYTHONPATH=.. python3 -m unittest discover -s tests -v
-python3 -m pip install .
+/opt/local/bin/python3.10 -m compileall -q .
+PYTHONPATH=.. /opt/local/bin/python3.10 -m unittest discover -s tests -v
+/opt/local/bin/python3.10 -m pip install .
 ```
 
 ## Limits
 
 This is not a complete C64 or analog SID replacement. Cartridge modes, full
-VIC fetch/collision behaviour, and all analog component variations are outside
-the core’s scope. Treat rendered audio and traces as reproducible analytical
-results, then validate hardware-critical conclusions against VICE and real
-hardware.
+VIC fetch/collision behaviour, exact sprite DMA memory addressing, IEC/tape,
+and all analog component variations are outside the core’s scope. Treat
+rendered audio and traces as reproducible analytical results, then validate
+hardware-critical conclusions against VICE and real hardware.
 
 ## License
 

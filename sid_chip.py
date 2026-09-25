@@ -126,6 +126,7 @@ class SidChip:
         # Voice state
         self.phase = [0, 0, 0]       # 24-bit
         self.prev_phase = [0, 0, 0]  # for wrap detection
+        self._test_last = [0, 0, 0]
 
         # Envelope (internal counter + (optional) one-cycle output pipeline)
         self.env_ctr = [0, 0, 0]         # 0..255 (internal)
@@ -164,6 +165,12 @@ class SidChip:
 
         self.osc3 = 0
         self.env3 = 0
+        # OSC3/ENV3 reads are one-cycle delayed; initialize both sides of the
+        # latch because a newly constructed chip may be clocked before reset.
+        self.osc3_latch = 0
+        self.env3_latch = 0
+        self._osc3_next = 0
+        self._env3_next = 0
 
         # D418 digi path (volume DAC + board RC network + AC coupling).
         # Defaults follow common board differences:
@@ -198,23 +205,6 @@ class SidChip:
         self._sid_cycle_now: int = 0
 
         SystemLogger.log('SID', f"SidChip init: clock_hz={self.clock_hz} seed={self._noise_seed:06X}", 'debug', category='boot')
-
-    # ---------------------------------------------------------------------
-    # Backwards-compatible telemetry accessors
-    # ---------------------------------------------------------------------
-    @property
-    def env(self) -> List[int]:
-        """Back-compat: older telemetry expects sid.env[v]."""
-        return self.env_out
-
-    @property
-    def env_timer(self) -> List[int]:
-        """Back-compat: older telemetry expects sid.env_timer[v].
-
-        We expose the 15-bit rate counter, which is the primary timing source
-        for envelope steps.
-        """
-        return self.rate_ctr
 
     def set_sample_rate(self, sample_rate: int) -> None:
         """Set audio sample rate and recompute analog-path coefficients."""

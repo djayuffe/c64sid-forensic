@@ -17,7 +17,7 @@ The recorder is fed from Cpu6502's write observer hook (called for every CPU wri
 """
 
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Sequence
+from typing import Sequence
 import struct
 
 

@@ -21,7 +21,7 @@ import hashlib
 import json
 import time
 import zlib
-from typing import IO, Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import IO, Any, Dict, Iterable, Optional, Sequence
 
 from .logger import SystemLogger
 

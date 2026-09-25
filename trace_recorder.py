@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import struct
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass

@@ -216,104 +216,59 @@ class C64System:
         # If VIC is stealing the bus this cycle, CPU must stall.
         return self.vic_dma.cpu_has_bus(self.memory.vic)
 
-def _vic_steal_cycle(self) -> int:
-    """Execute exactly one VIC DMA bus cycle and advance the machine by one PHI2.
+    def _vic_steal_cycle(self) -> int:
+        """Execute one VIC DMA cycle while the CPU has lost the bus."""
+        vic = self.memory.vic
+        info = self.vic_dma.steal_info(vic)
+        if not info.steal:
+            return 0
 
-    Called from Cpu6502 when BA/AEC stalls the CPU mid-instruction.
+        raster = int(vic.rasterLine) & 0x1FF
+        if info.kind == 'badline':
+            col = int(info.col) % 40
+            addr = 0x0400 + (((raster - 0x30) * 40 + col) % 1000)
+        elif info.kind == 'sprite_ptr':
+            addr = 0x07F8 + (int(info.sprite) & 0x07)
+        else:  # sprite data: model the three bus reads without inventing RAM writes.
+            addr = 0x3FFF
 
-    We emit a plausible VIC-side bus read depending on the current steal window:
-      - badline: screen matrix fetch (approx)
-      - sprite_ptr: sprite pointer table fetch ($07F8..$07FF)
-    """
-    vic = self.memory.vic
-    info = self.vic_dma.steal_info(vic)
-    if not info.steal:
-        return 0
-
-    raster = int(getattr(vic, 'rasterLine', 0)) & 0x1FF
-    vic_c = int(getattr(vic, 'cycleCounter', 0))
-
-    if info.kind == 'badline':
-        # Approximate screen matrix fetch address (40 bytes per badline).
-        col = int(info.col) % 40
-        row = (raster - 0x30) & 0xFF
-        addr = 0x0400 + ((row * 40 + col) % 1000)
-        v = int(self.memory.read(addr, pc=self.cpu.pc, cycle=self.cycle, is_vic=True, reason='VIC_BADLINE')) & 0xFF
-        self._tick_one_phi2('VIC', 'R', addr, v)
-        if SystemLogger.category_enabled('vicdma'):
-            SystemLogger.log('VICDMA', 'badline_fetch', 'debug', category='vicdma', fields={
-                'cycle': int(self.cycle),
-                'raster': int(raster),
-                'vic_cycle': int(vic_c),
-                'addr': int(addr),
-                'val': int(v),
-                'col': int(info.col),
-            })
-        return v
-
-    if info.kind == 'sprite_ptr':
-        spr = int(info.sprite) & 0x07
-        addr = (0x07F8 + spr) & 0xFFFF
-        v = int(self.memory.read(addr, pc=self.cpu.pc, cycle=self.cycle, is_vic=True, reason='VIC_SPRPTR')) & 0xFF
-        self._tick_one_phi2('VIC', 'R', addr, v)
-        if SystemLogger.category_enabled('vicdma'):
-            SystemLogger.log('VICDMA', 'sprite_ptr_fetch', 'debug', category='vicdma', fields={
-                'cycle': int(self.cycle),
-                'raster': int(raster),
-                'vic_cycle': int(vic_c),
-                'addr': int(addr),
-                'val': int(v),
-                'sprite': int(spr),
-                'slot': int(info.col),
-            })
-        return v
-
-    return 0
+        # MemoryBank currently exposes a single-address read interface.  The
+        # bus owner/reason remains represented by the system-level trace below.
+        value = int(self.memory.read(addr)) & 0xFF
+        self._tick_one_phi2('VIC', 'R', addr, value)
+        return value
 
     # ------------------------------------------------------------------
     # Public execution
     # ------------------------------------------------------------------
     def step(self, max_cycles: int) -> int:
-        """Run until max_cycles global PHI2 cycles have elapsed."""
+        """Run until ``max_cycles`` global PHI2 cycles have elapsed."""
         budget = max(0, int(max_cycles))
         start = int(self.stats.cpuCycles)
         target = start + budget
-
         while self.stats.cpuCycles < target:
-            # Service pending interrupts only at instruction boundaries.
             self._service_interrupts()
             if self.stats.cpuCycles >= target:
                 break
-
-            _ = self.cpu.step()
+            self.cpu.step()
             self.stats.instructions += 1
-
         return int(self.stats.cpuCycles) - start
 
     def call(self, addr: int, a: int = 0, x: int = 0, y: int = 0) -> None:
-        self.cpu.a = a & 0xFF
-        self.cpu.x = x & 0xFF
-        self.cpu.y = y & 0xFF
-
-        # Host-side subroutine entry: stack pushes and opcode fetches are cycle-accounted.
-        _ = self.cpu.hle_jsr(addr & 0xFFFF)
-
-        # Run until RTS returns
-        depth = 1
-        safety = MAX_CALL_CYCLES
-        start = int(self.stats.cpuCycles)
-        while depth > 0 and (int(self.stats.cpuCycles) - start) < safety:
-            op = self.memory.peek(self.cpu.pc)  # introspection only (no bus side effects)
-            _ = self.cpu.step()
+        """Run a host-invoked 6502 subroutine until its outer RTS returns."""
+        self.cpu.a, self.cpu.x, self.cpu.y = a & 0xFF, x & 0xFF, y & 0xFF
+        self.cpu.hle_jsr(addr & 0xFFFF)
+        depth, safety, start = 1, MAX_CALL_CYCLES, int(self.stats.cpuCycles)
+        while depth > 0 and int(self.stats.cpuCycles) - start < safety:
+            opcode = self.memory.peek(self.cpu.pc)
+            self.cpu.step()
             self.stats.instructions += 1
-            if op == 0x20:
+            if opcode == 0x20:
                 depth += 1
-            elif op == 0x60:
+            elif opcode == 0x60:
                 depth -= 1
-
-        ran = int(self.stats.cpuCycles) - start
-        if ran >= safety:
-            SystemLogger.log('C64', f'call() safety stop at {ran} cycles', 'warn')
+        if int(self.stats.cpuCycles) - start >= safety:
+            SystemLogger.log('C64', f'call() safety stop at {MAX_CALL_CYCLES} cycles', 'warn')
 
     def run_for_frames(self, frames: int) -> None:
         for _ in range(max(0, int(frames))):
